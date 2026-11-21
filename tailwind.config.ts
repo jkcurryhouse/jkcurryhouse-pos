@@ -1,64 +1,77 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
-  darkMode: ["class"],
   content: [
-    "./pages/**/*.{js,ts,jsx,tsx,mdx}",
-    "./components/**/*.{js,ts,jsx,tsx,mdx}",
-    "./app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
     extend: {
       colors: {
-        // JK Curryhouse brand palette — black & gold (see docs/BRAND.md).
-        // Legacy names (saffron / spice / charcoal) are kept so existing classes
-        // pick up the new palette automatically.
-        saffron: {            // light golds — accents on dark backgrounds
-          50:  "#fbf4e2",
-          100: "#f5e6bd",
-          400: "#f2d27a",
-          500: "#d4a437",
-          600: "#b8892a",
-        },
-        spice: {              // deep bronze-gold — buttons, links & text on light backgrounds
-          50:  "#faf4e6",
-          100: "#f2e5c4",
-          200: "#e6d09a",
-          300: "#d6b86c",
-          400: "#c49a3e",
-          500: "#8a6416",
-          600: "#6e4f11",
-          700: "#553d0d",
-          800: "#3a2a09",
-          900: "#1f1705",
-        },
-        charcoal: {
-          700: "#262626",
-          800: "#141414",
-          900: "#0b0b0b",
-        },
-        cream: "#f8f2e6",
+        background: "var(--background)",
+        foreground: "var(--foreground)",
+        ivory: "#FAF6EC",
+        cardamom: "#1C1812",
+        // JK Curryhouse brand — black & gold, taken from the signage and monogram.
         gold: {
-          light:   "#f2d27a",
-          DEFAULT: "#d4a437",
-          deep:    "#9c6f1e",
+          DEFAULT: "#C9A14A",
+          dark: "#8A6516", // text-safe on ivory/white (≥4.9:1)
+          light: "#E7C77A", // text-safe on charcoal/onyx
         },
-        stone: "#c9a27a",
+        onyx: {
+          DEFAULT: "#16130E", // primary actions, active nav, top bar
+          dark: "#0B0907",
+          light: "#2E2820",
+        },
+        // Success / ready / online states (kept green so they read at a glance).
+        jade: {
+          DEFAULT: "#2F6B4A",
+          dark: "#1F5138",
+          light: "#6FB98F",
+        },
+        chili: {
+          DEFAULT: "#AE3428",
+          dark: "#7E241B",
+          light: "#D65C4C",
+        },
+        ticket: "#F1E9D8",
+        charcoal: {
+          DEFAULT: "#15130F",
+          light: "#221E17",
+          lighter: "#2E2820",
+        },
       },
       fontFamily: {
-        display: ["var(--font-display)", "Georgia", "serif"],
-        body:    ["var(--font-inter)", "system-ui", "sans-serif"],
-        accent:  ["var(--font-cormorant)", "Georgia", "serif"],
-        caps:    ["var(--font-cinzel)", "Georgia", "serif"],
+        display: [
+          "Iowan Old Style",
+          "Palatino Linotype",
+          "URW Palladio L",
+          "P052",
+          "serif",
+        ],
+        body: [
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "Segoe UI",
+          "Inter",
+          "Helvetica Neue",
+          "Arial",
+          "sans-serif",
+        ],
+        mono: [
+          "ui-monospace",
+          "SFMono-Regular",
+          "Menlo",
+          "Consolas",
+          "monospace",
+        ],
       },
-      backgroundImage: {
-        "hero-gradient": "linear-gradient(to bottom, rgba(11,11,11,0.75) 0%, rgba(11,11,11,0.45) 60%, rgba(11,11,11,0.85) 100%)",
-        "section-gradient": "linear-gradient(135deg, #0b0b0b 0%, #1a1a1a 50%, #0b0b0b 100%)",
-        "gold-gradient": "linear-gradient(180deg, #f2d27a 0%, #d4a437 50%, #9c6f1e 100%)",
+      boxShadow: {
+        ticket: "0 1px 0 rgba(0,0,0,0.04), 0 8px 24px rgba(28,24,18,0.10)",
       },
     },
   },
   plugins: [],
 };
-
 export default config;
