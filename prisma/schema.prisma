@@ -1,0 +1,410 @@
+// Prisma 7 header (POS). The models section below must match jkcurryhouse-web/prisma/schema.prisma.
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// =============================================================================
+// SHARED DATA MODEL — JK Curryhouse website + POS (one RDS PostgreSQL database)
+//
+// The models below are IDENTICAL in both repos:
+//   • jkcurryhouse-pos/prisma/schema.prisma   ← owns the migrations (prisma/migrations)
+//   • jkcurryhouse-web/prisma/schema.prisma   ← mirror; only runs `prisma generate`
+// Only the generator/datasource blocks above differ (Prisma 7 vs Prisma 5).
+//
+// Change models in the POS repo, create a migration there, then copy the models
+// section into the website repo. NEVER run `prisma db push` against this database:
+// it would try to drop whatever the running repo's schema doesn't list.
+//
+// Website-owned tables keep their original names and columns; the POS only ADDS
+// columns (all nullable or defaulted, so existing website code keeps working).
+// Money on shared tables is GBP Float (website convention); POS-only tables use
+// integer pence (*Pence).
+// =============================================================================
+
+// ---------------------------------------------------------------- menu (shared)
+
+/// Website `category` drives the menu sections on both the website and the POS.
+enum Category {
+  STARTER
+  MAIN
+  SIDE
+  RICE
+  BREAD
+  SPECIAL
+  DRINK
+  DESSERT
+}
+
+model MenuItem {
+  id          String      @id @default(cuid())
+  name        String
+  description String
+  price       Float
+  category    Category
+  /// Highlighted as "Chef's pick" / today's special on the website and POS
+  isSpecial   Boolean     @default(false)
+  /// In stock. The POS "86" button flips this, so the website stops selling it too.
+  isAvailable Boolean     @default(true)
+  /// UK allergen keys: gluten dairy nuts peanuts egg soy shellfish fish celery mustard sesame sulphites lupin molluscs
+  allergens   String[]    @default([])
+  imageUrl    String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  OrderItems  OrderItem[]
+
+  // --- added for the POS ---
+  /// vegan | vegetarian | spicy | halal | gluten-free
+  dietary            String[] @default([])
+  /// mild | medium | hot | extra-hot
+  spiceLevelOptions  String[] @default([])
+  /// [{ id, label, required, multiSelect, options: [{ id, label, priceDelta (GBP) }] }]
+  modifierGroups     Json     @default("[]")
+  availableOnline    Boolean  @default(true)
+  availablePos       Boolean  @default(true)
+  /// false = archived (hidden everywhere, kept for order history)
+  active             Boolean  @default(true)
+  sortOrder          Int      @default(0)
+  calories           Int?
+  vatRateBasisPoints Int?
+
+  @@index([updatedAt])
+}
+
+// ---------------------------------------------------------------- reservations (website)
+
+model Reservation {
+  id             String            @id @default(cuid())
+  name           String
+  email          String
+  phone          String
+  date           DateTime
+  time           String
+  partySize      Int
+  specialRequest String?
+  status         ReservationStatus @default(PENDING)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+}
+
+enum ReservationStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+// ---------------------------------------------------------------- orders (shared)
+
+model Order {
+  id         String      @id @default(cuid())
+  type       OrderType
+  /// Customer-facing lifecycle (website): PENDING = awaiting online payment.
+  /// The POS keeps it in step with the kitchen (PREPARING → READY → DELIVERED).
+  status     OrderStatus @default(PENDING)
+  /// Amount due/charged in GBP (items − discount + delivery fee [+ service charge])
+  total      Float
+  /// Cognito user id for signed-in website customers
+  userId     String?
+  guestEmail String?
+  address    String?
+  items      OrderItem[]
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  // --- added for the POS ---
+  /// Short ticket number shown on the KDS, receipts and website confirmation
+  orderNumber          Int       @unique @default(autoincrement())
+  /// POS | online
+  channel              String    @default("online")
+  /// pending | preparing | ready | served (derived from the lines)
+  kitchenStatus        String    @default("pending")
+  /// unpaid | partial | paid | refunded | void
+  paymentStatus        String    @default("unpaid")
+  tableNumbers         String[]  @default([])
+  guestCount           Int?
+  customerNote         String?
+  staffName            String?
+  staffId              String?
+  tip                  Float     @default(0)
+  deliveryFee          Float     @default(0)
+  discountAmount       Float     @default(0)
+  discountCode         String?
+  /// { id, kind: promo|staff, code?, label, amount (GBP), appliedByStaffId, approvedByStaffId?, appliedAt }
+  discount             Json?
+  serviceChargePercent Float?
+  sentToKitchen        Boolean   @default(false)
+  scheduledFor         DateTime?
+  scheduleReleased     Boolean   @default(false)
+  voidReason           String?
+  customerId           String?
+  /// Contact snapshot: { name, phone, postcode, addressLine1, street, town? }
+  deliveryDetails      Json?
+  stripePaymentIntentId String?  @unique
+  mergedIntoOrderId    String?
+
+  customer Customer? @relation(fields: [customerId], references: [id])
+  payments Payment[]
+
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([paymentStatus])
+}
+
+enum OrderType {
+  DELIVERY
+  TAKEAWAY
+  DINE_IN
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PREPARING
+  READY
+  DELIVERED
+  CANCELLED
+}
+
+model OrderItem {
+  id         String   @id @default(cuid())
+  orderId    String
+  menuItemId String
+  quantity   Int
+  /// Unit price in GBP, including any option add-ons
+  price      Float
+  order      Order    @relation(fields: [orderId], references: [id])
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+
+  // --- added for the POS ---
+  /// Dish name at the time of ordering
+  name               String?
+  position           Int      @default(0)
+  spiceLevel         String?
+  /// [{ groupId, groupLabel, optionId, optionLabel, priceDelta (GBP) }]
+  modifiers          Json     @default("[]")
+  notes              String?
+  allergens          String[] @default([])
+  /// Kitchen line status: pending | preparing | ready | served
+  status             String   @default("pending")
+  flaggedDelayed     Boolean  @default(false)
+  flaggedUnavailable Boolean  @default(false)
+
+  @@index([orderId])
+}
+
+// ---------------------------------------------------------------- offers / promo codes (shared)
+
+model Offer {
+  id          String      @id @default(cuid())
+  title       String
+  description String
+  code        String      @unique
+  discount    Float
+  isPercent   Boolean     @default(true)
+  /// true = any customer can use the code; false = unlocked per signed-in user (UserOffer)
+  isGeneral   Boolean     @default(true)
+  minOrders   Int         @default(0)
+  minSpend    Float       @default(0)
+  expiresAt   DateTime
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  UserOffers  UserOffer[]
+
+  // --- added for the POS ---
+  active    Boolean   @default(true)
+  validFrom DateTime?
+  maxUses   Int?
+  useCount  Int       @default(0)
+  /// POS and/or online
+  channels  String[]  @default(["POS", "online"])
+}
+
+model UserOffer {
+  id         String    @id @default(cuid())
+  userId     String
+  offerId    String
+  redeemedAt DateTime?
+  createdAt  DateTime  @default(now())
+  offer      Offer     @relation(fields: [offerId], references: [id])
+
+  @@unique([userId, offerId])
+}
+
+// ---------------------------------------------------------------- POS-only tables
+
+model Restaurant {
+  id                          String   @id
+  name                        String
+  legalName                   String   @default("") @map("legal_name")
+  tagline                     String   @default("")
+  addressLines                String[] @default([]) @map("address_lines")
+  phone                       String   @default("")
+  email                       String   @default("")
+  vatNumber                   String   @default("") @map("vat_number")
+  companyNumber               String   @default("") @map("company_number")
+  receiptFooter               String   @default("") @map("receipt_footer")
+  currency                    String   @default("GBP")
+  timezone                    String   @default("Europe/London")
+  vatRateBasisPoints          Int      @default(2000) @map("vat_rate_bp")
+  defaultServiceChargePercent Float    @default(12.5) @map("default_service_charge_percent")
+  serviceChargeMinGuests      Int      @default(6) @map("service_charge_min_guests")
+  inactivityLogoutMinutes     Int      @default(10) @map("inactivity_logout_minutes")
+  autoSendToKitchen           Boolean  @default(false) @map("auto_send_to_kitchen")
+  kdsWarnMinutes              Int      @default(15) @map("kds_warn_minutes")
+  tipPresets                  Int[]    @default([10, 12, 15]) @map("tip_presets")
+  updatedAt                   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  staff        Staff[]
+  customers    Customer[]
+  tillSessions TillSession[]
+
+  @@map("restaurants")
+}
+
+/// role: staff | manager | admin
+model Staff {
+  id                  String    @id
+  restaurantId        String    @map("restaurant_id")
+  name                String
+  initials            String
+  /// Sign-in identifier, stored lower-case.
+  email               String
+  role                String    @default("staff")
+  /// bcrypt hash (cost 12). Plain passwords are never stored or logged.
+  passwordHash        String    @map("password_hash")
+  /// Set when an admin issues a temporary password; the user must choose a new one.
+  mustChangePassword  Boolean   @default(false) @map("must_change_password")
+  passwordChangedAt   DateTime? @map("password_changed_at") @db.Timestamptz(3)
+  phone               String?
+  active              Boolean   @default(true)
+  failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
+  lockedUntil         DateTime? @map("locked_until") @db.Timestamptz(3)
+  lastLoginAt         DateTime? @map("last_login_at") @db.Timestamptz(3)
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+
+  @@unique([email])
+  @@index([restaurantId])
+  @@map("staff")
+}
+
+/// Phone-keyed takeaway/delivery customers captured at the till.
+model Customer {
+  id              String    @id
+  restaurantId    String    @map("restaurant_id")
+  name            String
+  phone           String
+  /// digits only, leading 44 folded to 0 — see src/lib/phone.ts
+  phoneNormalised String    @map("phone_normalised")
+  email           String?
+  postcode        String    @default("")
+  addressLine1    String    @default("") @map("address_line1")
+  street          String    @default("")
+  town            String?
+  notes           String?
+  marketingOptIn  Boolean   @default(false) @map("marketing_opt_in")
+  orderCount      Int       @default(0) @map("order_count")
+  lastOrderAt     DateTime? @map("last_order_at") @db.Timestamptz(3)
+  anonymisedAt    DateTime? @map("anonymised_at") @db.Timestamptz(3)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+  orders     Order[]
+
+  @@unique([restaurantId, phoneNormalised])
+  @@index([updatedAt])
+  @@map("customers")
+}
+
+/// method: card | cash · negative amount = refund. Written by the POS and by the
+/// website's Stripe webhook (takenByStaffId = "online").
+model Payment {
+  id                    String   @id
+  orderId               String   @map("order_id")
+  method                String
+  amountPence           Int      @map("amount_pence")
+  cashTenderedPence     Int?     @map("cash_tendered_pence")
+  changeGivenPence      Int?     @map("change_given_pence")
+  stripePaymentIntentId String?  @map("stripe_payment_intent_id")
+  takenAt               DateTime @default(now()) @map("taken_at") @db.Timestamptz(3)
+  takenByStaffId        String   @map("taken_by_staff_id")
+
+  order Order @relation(fields: [orderId], references: [id])
+
+  @@index([orderId])
+  @@index([takenAt])
+  @@map("payments")
+}
+
+model TillSession {
+  id                String    @id
+  restaurantId      String    @map("restaurant_id")
+  openingFloatPence Int       @map("opening_float_pence")
+  openedAt          DateTime  @map("opened_at") @db.Timestamptz(3)
+  openedByStaffId   String    @map("opened_by_staff_id")
+  closedAt          DateTime? @map("closed_at") @db.Timestamptz(3)
+  countedCashPence  Int?      @map("counted_cash_pence")
+  expectedCashPence Int?      @map("expected_cash_pence")
+  closedByStaffId   String?   @map("closed_by_staff_id")
+  notes             String?
+  updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  restaurant    Restaurant     @relation(fields: [restaurantId], references: [id])
+  cashMovements CashMovement[]
+
+  @@index([restaurantId, openedAt])
+  @@map("till_sessions")
+}
+
+/// type: in | out
+model CashMovement {
+  id            String   @id
+  tillSessionId String   @map("till_session_id")
+  type          String
+  amountPence   Int      @map("amount_pence")
+  reason        String
+  at            DateTime @db.Timestamptz(3)
+  staffId       String   @map("staff_id")
+
+  tillSession TillSession @relation(fields: [tillSessionId], references: [id])
+
+  @@map("cash_movements")
+}
+
+model AuditLog {
+  id                 String   @id
+  restaurantId       String   @map("restaurant_id")
+  type               String
+  orderId            String?  @map("order_id")
+  orderNumber        Int?     @map("order_number")
+  amountPence        Int?     @map("amount_pence")
+  reason             String
+  performedByStaffId String   @map("performed_by_staff_id")
+  approvedByStaffId  String?  @map("approved_by_staff_id")
+  meta               Json?
+  ip                 String?
+  at                 DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([restaurantId, at])
+  @@map("audit_log")
+}
+
+/// Idempotency ledger for the POS offline outbox: an op id is applied at most once.
+model ProcessedOp {
+  id          String   @id
+  type        String
+  staffId     String?  @map("staff_id")
+  ok          Boolean
+  error       String?
+  processedAt DateTime @default(now()) @map("processed_at") @db.Timestamptz(3)
+
+  @@map("processed_ops")
+}

@@ -15,6 +15,7 @@ import {
   ShieldAlert,
   CheckCircle2,
 } from "lucide-react";
+import { isManagerRole } from "@/lib/types";
 
 function downloadCsv(filename: string, rows: string[][]) {
   const csv = rows.map((r) => r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
@@ -58,11 +59,14 @@ function TillScreen() {
     const totals: Record<string, number> = { card: 0, cash: 0 };
     for (const o of paidOrders) {
       for (const p of o.payments) {
-        if (p.amount > 0) totals[p.method] = (totals[p.method] ?? 0) + p.amount;
+        if (currentTill && p.takenAt < currentTill.openedAt) continue;
+        // Refunds are negative entries — a cash refund leaves the drawer, so it nets off here
+        // (the server's end-of-day expected-cash figure uses the same rule).
+        totals[p.method] = (totals[p.method] ?? 0) + p.amount;
       }
     }
     return totals;
-  }, [paidOrders]);
+  }, [paidOrders, currentTill]);
 
   const tipsTotal = useMemo(() => paidOrders.reduce((s, o) => s + o.tip, 0), [paidOrders]);
 
@@ -113,7 +117,7 @@ function TillScreen() {
     downloadCsv(`jk-curryhouse-pos-eod-${new Date().toISOString().slice(0, 10)}.csv`, rows);
   }
 
-  if (currentStaff?.role !== "manager") {
+  if (!isManagerRole(currentStaff?.role)) {
     return (
       <div className="h-screen flex flex-col">
         <TopBar />

@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { categories, menuItems } from "@/lib/mock-data";
 import { MenuGrid } from "@/components/MenuGrid";
 import { CartPanel } from "@/components/CartPanel";
 import { TopBar } from "@/components/TopBar";
@@ -11,12 +10,19 @@ import { useStore } from "@/lib/store";
 import { Search, ShoppingBag, X } from "lucide-react";
 
 function OrderScreen() {
-  const [activeCategory, setActiveCategory] = useState(categories[0].id);
+  const { menuItems: items, categories, draftLines, bootstrapped } = useStore();
+  const [chosenCategory, setActiveCategory] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
-  const { menuItems: liveMenuItems, draftLines } = useStore();
-
-  const items = liveMenuItems.length ? liveMenuItems : menuItems;
+  // Only show categories that have something on sale in the POS.
+  const visibleCategories = useMemo(
+    () => categories.filter((c) => items.some((i) => i.categoryId === c.id)),
+    [categories, items]
+  );
+  const activeCategory =
+    chosenCategory && visibleCategories.some((c) => c.id === chosenCategory)
+      ? chosenCategory
+      : visibleCategories[0]?.id ?? "";
 
   const filtered = useMemo(() => {
     const byCategory = items.filter((i) => i.categoryId === activeCategory);
@@ -48,7 +54,7 @@ function OrderScreen() {
             </div>
             {!query.trim() && (
               <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-                {categories.map((c) => (
+                {visibleCategories.map((c) => (
                   <button
                     key={c.id}
                     onClick={() => setActiveCategory(c.id)}
@@ -65,7 +71,13 @@ function OrderScreen() {
             )}
           </div>
           <div className="flex-1 overflow-y-auto px-4 sm:px-6 pb-6">
-            <MenuGrid items={filtered} />
+            {items.length === 0 ? (
+              <p className="text-center text-sm text-cardamom/40 py-16">
+                {bootstrapped ? "No menu items are on sale — add some in Admin → Menu." : "Loading menu…"}
+              </p>
+            ) : (
+              <MenuGrid items={filtered} />
+            )}
           </div>
         </div>
         <div className="w-[340px] shrink-0 hidden md:block">

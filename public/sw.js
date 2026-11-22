@@ -1,7 +1,7 @@
 // JK Curryhouse POS service worker — caches the app shell so the order screen keeps
 // working through short connectivity drops, per requirement 1.6.
-const CACHE_NAME = "jk-curryhouse-pos-shell-v2";
-const SHELL_URLS = ["/", "/order", "/kds", "/payments", "/till"];
+const CACHE_NAME = "jk-curryhouse-pos-shell-v3";
+const SHELL_URLS = ["/", "/order", "/kds", "/payments", "/till", "/reports", "/admin"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -24,9 +24,11 @@ self.addEventListener("activate", (event) => {
 // client-side (see src/lib/store.tsx) rather than intercepted here.
 self.addEventListener("fetch", (event) => {
   const { request } = event;
-  if (request.method !== "GET" || new URL(request.url).origin !== self.location.origin) {
-    return;
-  }
+  const url = new URL(request.url);
+  if (request.method !== "GET" || url.origin !== self.location.origin) return;
+  // Never cache or fake API responses: they carry live order/customer data, and the
+  // store's offline outbox already handles connectivity drops for data.
+  if (url.pathname.startsWith("/api/")) return;
 
   event.respondWith(
     fetch(request)
@@ -35,6 +37,10 @@ self.addEventListener("fetch", (event) => {
         caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
         return response;
       })
-      .catch(() => caches.match(request).then((cached) => cached || caches.match("/")))
+      .catch(() =>
+        caches
+          .match(request)
+          .then((cached) => cached || (request.mode === "navigate" ? caches.match("/") : Response.error()))
+      )
   );
 });

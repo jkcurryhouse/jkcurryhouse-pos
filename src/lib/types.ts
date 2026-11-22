@@ -6,10 +6,13 @@ export type Allergen =
   | "shellfish"
   | "fish"
   | "egg"
-  | "soya"
+  | "soy"
   | "mustard"
   | "sesame"
-  | "sulphites";
+  | "sulphites"
+  | "celery"
+  | "lupin"
+  | "molluscs";
 
 export type SpiceLevel = "mild" | "medium" | "hot" | "extra-hot";
 
@@ -38,11 +41,24 @@ export interface MenuItem {
   isOutOfStock?: boolean;
   modifierGroups?: ModifierGroup[];
   spiceLevelOptions?: SpiceLevel[];
+  // Admin-managed fields (from the shared menu tables)
+  dietary?: string[];
+  sortOrder?: number;
+  /** false = hidden from the POS grid (archived, or not sold in-restaurant) */
+  active?: boolean;
+  archived?: boolean;
+  availablePos?: boolean;
+  availableOnline?: boolean;
+  calories?: number;
+  vatRateBasisPoints?: number;
+  imageUrl?: string;
 }
 
 export interface MenuCategory {
   id: string;
   name: string;
+  sortOrder?: number;
+  active?: boolean;
 }
 
 export type OrderType = "dine-in" | "takeaway" | "delivery";
@@ -86,6 +102,14 @@ export interface Order {
   items: OrderLineItem[];
   status: OrderStatus;
   createdAt: number;
+  /** Server-side last-modified time (absent on orders not yet synced). */
+  updatedAt?: number;
+  /** Set when this ticket was merged into another — it's then hidden everywhere. */
+  mergedIntoOrderId?: string;
+  /** Website delivery charge (GBP), part of what the customer paid. */
+  deliveryFee?: number;
+  /** Website customer-facing status (PENDING … DELIVERED / CANCELLED) */
+  webStatus?: string;
   staffName: string;
   staffId?: string;
   paymentStatus: PaymentStatus;
@@ -140,6 +164,8 @@ export interface CustomerContactSnapshot {
 // carry a verified UK address.
 export interface Customer extends CustomerContactSnapshot {
   id: string;
+  email?: string;
+  anonymised?: boolean;
   notes?: string;
   // GDPR: explicit opt-in required before phone/details are used for
   // marketing offers rather than just this order's delivery.
@@ -162,21 +188,31 @@ export interface OrderDiscount {
 }
 
 export interface PromoCode {
+  id?: string;
   code: string;
   label: string;
+  /** Percentage off, or — when isPercent is false — a fixed £ amount off */
   percentOff: number;
+  isPercent?: boolean;
+  minSpend?: number;
 }
 
 export type SyncStatus = "synced" | "queued";
 
-export type StaffRole = "staff" | "manager";
+export type StaffRole = "staff" | "manager" | "admin";
+
+/** Managers and admins can authorise overrides; admins also manage staff and settings. */
+export const isManagerRole = (role?: StaffRole | null) => role === "manager" || role === "admin";
 
 export interface StaffAccount {
   id: string;
   name: string;
   role: StaffRole;
-  pin: string;
   initials: string;
+  /** Sign-in email (present for the signed-in user). Passwords never leave the server. */
+  email?: string;
+  /** True after an admin issues a temporary password — the user must set their own. */
+  mustChangePassword?: boolean;
 }
 
 export type PaymentStatus = "unpaid" | "partial" | "paid" | "refunded" | "void";
@@ -210,11 +246,28 @@ export interface TillSession {
   openedByStaffId: string;
   closedAt?: number;
   countedCash?: number;
+  expectedCash?: number;
+  notes?: string;
   closedByStaffId?: string;
   cashMovements: CashMovement[];
 }
 
-export type AuditActionType = "refund" | "void" | "staff-discount" | "manager-override";
+export type AuditActionType =
+  | "refund"
+  | "void"
+  | "staff-discount"
+  | "manager-override"
+  | "login"
+  | "login-failed"
+  | "pin-lockout"
+  | "menu-change"
+  | "staff-change"
+  | "settings-change"
+  | "promo-change"
+  | "customer-change"
+  | "till-open"
+  | "till-close"
+  | "data-export";
 
 export interface AuditLogEntry {
   id: string;
@@ -226,6 +279,7 @@ export interface AuditLogEntry {
   performedByStaffId: string;
   approvedByStaffId?: string;
   at: number;
+  meta?: Record<string, unknown>;
 }
 
 

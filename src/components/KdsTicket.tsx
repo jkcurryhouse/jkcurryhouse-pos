@@ -16,9 +16,9 @@ function useElapsedMinutes(createdAt: number) {
 }
 
 export function KdsTicket({ order }: { order: Order }) {
-  const { advanceLineStatus, flagLine } = useStore();
+  const { advanceLineStatus, flagLine, settings } = useStore();
   const minutes = useElapsedMinutes(order.createdAt);
-  const overThreshold = minutes >= 12 && order.status !== "served";
+  const overThreshold = minutes >= (settings?.kdsWarnMinutes ?? 12) && order.status !== "served";
 
   return (
     <div

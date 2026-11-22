@@ -41,3 +41,11 @@ next-env.d.ts
 
 # Prisma generated
 node_modules/.prisma
+
+# The Amazon RDS CA bundle is public and needed for DATABASE_SSL=verify
+!certs/rds-global-bundle.pem
+.env.production
+
+# Prisma client is generated at install/build time
+/src/generated/
+.env

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
-import { BRAND } from "@/lib/brand";
+import { receiptHeaderHtml, receiptFooterHtml } from "@/lib/receipt";
 import { Order } from "@/lib/types";
 import { rawSubtotal, vatPortion } from "@/lib/billing";
 import {
@@ -267,7 +267,7 @@ function SeatPayment({
   staffId: string;
   onPaid: () => void;
 }) {
-  const { recordPayment } = useStore();
+  const { recordPayment, settings } = useStore();
   const [tipPct, setTipPct] = useState<number | null>(0);
   const [customTip, setCustomTip] = useState("");
   const tip = tipPct !== null ? seatNet * tipPct : parseFloat(customTip || "0") || 0;
@@ -324,14 +324,14 @@ function SeatPayment({
       table{width:100%;font-size:12px;border-collapse:collapse}td{padding:2px 0}
       .totals td{border-top:1px dashed #999;padding-top:6px}.grand{font-weight:bold;font-size:14px}</style>
       </head><body>
-      <h1>${BRAND.receiptHeading}</h1>
+      ${receiptHeaderHtml(settings)}
       <p>Order #${order.orderNumber} · Seat ${seatIndex + 1} of ${seatCount}<br/>${new Date().toLocaleString()}</p>
       <table>${lines}</table>
       <table class="totals">
         <tr><td>incl. VAT (20%)</td><td style="text-align:right">£${vat.toFixed(2)}</td></tr>
         <tr><td>Tip</td><td style="text-align:right">£${tip.toFixed(2)}</td></tr>
         <tr class="grand"><td>Total paid</td><td style="text-align:right">£${due.toFixed(2)}</td></tr>
-      </table></body></html>
+      </table>${receiptFooterHtml(settings)}</body></html>
     `);
     win.document.close();
     win.print();

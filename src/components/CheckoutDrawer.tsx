@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Order, PaymentMethod } from "@/lib/types";
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
-import { BRAND } from "@/lib/brand";
+import { receiptHeaderHtml, receiptFooterHtml } from "@/lib/receipt";
 import { rawSubtotal, amountDueForItems, vatPortion } from "@/lib/billing";
 import { X, CreditCard, Banknote, CheckCircle2, Printer } from "lucide-react";
 
@@ -27,7 +27,7 @@ interface PendingPayment {
 }
 
 export function CheckoutDrawer({ order, onClose }: { order: Order; onClose: () => void }) {
-  const { recordPayment } = useStore();
+  const { recordPayment, settings } = useStore();
   const { currentStaff } = useAuth();
 
   const itemsSubtotal = useMemo(() => rawSubtotal(order), [order]);
@@ -46,9 +46,16 @@ export function CheckoutDrawer({ order, onClose }: { order: Order; onClose: () =
     if (order.serviceChargePercent !== undefined) return order.serviceChargePercent / 100;
     // UK convention: suggest a discretionary service charge for larger
     // dine-in parties — staff/customer can still change or remove it.
-    return order.guestCount && order.guestCount >= SERVICE_CHARGE_SUGGEST_GUESTS ? 0.125 : 0;
+    const minGuests = settings?.serviceChargeMinGuests ?? SERVICE_CHARGE_SUGGEST_GUESTS;
+    const pct = (settings?.defaultServiceChargePercent ?? 12.5) / 100;
+    return minGuests > 0 && order.guestCount && order.guestCount >= minGuests ? pct : 0;
   });
   const [customServiceCharge, setCustomServiceCharge] = useState("");
+  // Presets come from Admin → Settings (falling back to the built-in defaults).
+  const tipPresets = settings?.tipPresets?.length ? [0, ...settings.tipPresets.map((t) => t / 100)] : TIP_PRESETS;
+  const servicePresets = settings
+    ? Array.from(new Set([0, 10, settings.defaultServiceChargePercent])).sort((a, b) => a - b)
+    : SERVICE_CHARGE_PRESETS;
   const serviceChargePctResolved = canEditServiceCharge
     ? serviceChargePct !== null
       ? serviceChargePct
@@ -191,7 +198,7 @@ export function CheckoutDrawer({ order, onClose }: { order: Order; onClose: () =
           </style>
         </head>
         <body>
-          <h1>${BRAND.receiptHeading}</h1>
+          ${receiptHeaderHtml(settings)}
           <p>${kind === "bill" ? "Bill" : "Order"} #${order.orderNumber} · ${order.orderType.replace("-", " ")}${
       order.tableNumbers && order.tableNumbers.length > 0
         ? ` · Table${order.tableNumbers.length > 1 ? "s" : ""} ${order.tableNumbers.join(", ")}`
@@ -209,7 +216,7 @@ export function CheckoutDrawer({ order, onClose }: { order: Order; onClose: () =
     }</p>
           <table>${lines}</table>
           <table class="totals">${totalsRows}</table>
-        </body>
+        ${receiptFooterHtml(settings)}</body>
       </html>
     `);
     win.document.close();
@@ -320,7 +327,7 @@ export function CheckoutDrawer({ order, onClose }: { order: Order; onClose: () =
                 </div>
                 {canEditServiceCharge ? (
                   <div className="flex flex-wrap gap-2">
-                    {SERVICE_CHARGE_PRESETS.map((p) => (
+                    {servicePresets.map((p) => (
                       <button
                         key={p}
                         onClick={() => {
@@ -362,7 +369,7 @@ export function CheckoutDrawer({ order, onClose }: { order: Order; onClose: () =
                   Tip
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {TIP_PRESETS.map((p) => (
+                  {tipPresets.map((p) => (
                     <button
                       key={p}
                       onClick={() => {

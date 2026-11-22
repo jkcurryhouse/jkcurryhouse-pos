@@ -7,10 +7,11 @@ export function rawSubtotal(order: Pick<Order, "items">): number {
   return order.items.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
 }
 
-/** Item subtotal after the order-level discount (tip is never discounted). */
-export function netSubtotal(order: Pick<Order, "items" | "discount">): number {
+/** Item subtotal after the order-level discount, plus any website delivery fee
+ * (tip is never discounted). */
+export function netSubtotal(order: Pick<Order, "items" | "discount"> & { deliveryFee?: number }): number {
   const discount = order.discount?.amount ?? 0;
-  return Math.max(0, rawSubtotal(order) - discount);
+  return Math.max(0, rawSubtotal(order) - discount) + (order.deliveryFee ?? 0);
 }
 
 /**

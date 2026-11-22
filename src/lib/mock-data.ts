@@ -1,269 +1,17 @@
-import { MenuCategory, MenuItem } from "./types";
-import { StaffAccount, PromoCode } from "./types";
+// Constants shared by the POS UI and the seed script. The menu itself lives in the
+// database (seeded from prisma/seed-menu.ts, the restaurant's real menu).
+import { PromoCode } from "./types";
 
-// Single-location today, but every record carries this so multi-site is a
-// config change rather than a schema change later (requirement 2.5).
+// Single-location today, but POS records carry this so multi-site is a config change.
 export const RESTAURANT_ID = "anand-main";
 
+/** Starter promo codes, created by the seed only if they don't exist yet. */
 export const promoCodes: PromoCode[] = [
   { code: "WELCOME10", label: "Welcome 10% off", percentOff: 10 },
   { code: "FAMILY15", label: "Family meal 15% off", percentOff: 15 },
-  { code: "REGULAR5", label: "Regular customer 5% off", percentOff: 5 },
 ];
 
-export const staffAccounts: StaffAccount[] = [
-  { id: "staff-anita", name: "Anita Nair", role: "manager", pin: "1234", initials: "AN" },
-  { id: "staff-devan", name: "Devan Kumar", role: "staff", pin: "2345", initials: "DK" },
-  { id: "staff-priya", name: "Priya Menon", role: "staff", pin: "3456", initials: "PM" },
-  { id: "staff-raj", name: "Raj Suresh", role: "staff", pin: "4567", initials: "RS" },
-];
-
-export const categories: MenuCategory[] = [
-  { id: "starters", name: "Starters" },
-  { id: "breads", name: "Breads" },
-  { id: "curries", name: "Curries" },
-  { id: "tandoori", name: "Tandoori & Grill" },
-  { id: "rice", name: "Rice & Biryani" },
-  { id: "sides", name: "Sides & Sundries" },
-  { id: "drinks", name: "Drinks & Bar" },
-  { id: "desserts", name: "Desserts" },
-];
-
-const spiceGroup = ["mild", "medium", "hot", "extra-hot"] as const;
-
-export const menuItems: MenuItem[] = [
-  {
-    id: "onion-bhaji",
-    name: "Onion Bhaji",
-    description: "Crisp gram-flour fritters with red onion and coriander.",
-    price: 5.5,
-    categoryId: "starters",
-    allergens: ["gluten", "mustard"],
-    modifierGroups: [
-      {
-        id: "sauce",
-        label: "Dip",
-        required: false,
-        multiSelect: false,
-        options: [
-          { id: "mint", label: "Mint yoghurt", priceDelta: 0 },
-          { id: "tamarind", label: "Tamarind chutney", priceDelta: 0 },
-          { id: "mango", label: "Mango chutney", priceDelta: 0.5 },
-        ],
-      },
-    ],
-  },
-  {
-    id: "chicken-chaat",
-    name: "Chicken Chaat",
-    description: "Tandoor-charred chicken tossed with chaat masala and lime.",
-    price: 6.95,
-    categoryId: "starters",
-    allergens: ["dairy"],
-    isTodaysSpecial: true,
-    spiceLevelOptions: [...spiceGroup],
-  },
-  {
-    id: "prawn-puri",
-    name: "Prawn Puri",
-    description: "Spiced prawns on puffed fried bread.",
-    price: 7.5,
-    categoryId: "starters",
-    allergens: ["gluten", "shellfish", "egg"],
-  },
-  {
-    id: "vegetable-samosa",
-    name: "Vegetable Samosa (2pc)",
-    description: "Hand-folded pastry with spiced potato and pea.",
-    price: 4.95,
-    categoryId: "starters",
-    allergens: ["gluten"],
-  },
-  {
-    id: "garlic-naan",
-    name: "Garlic Naan",
-    description: "Charred in the tandoor, brushed with garlic butter.",
-    price: 3.5,
-    categoryId: "breads",
-    allergens: ["gluten", "dairy"],
-  },
-  {
-    id: "plain-naan",
-    name: "Plain Naan",
-    description: "Classic leavened tandoor bread.",
-    price: 3.0,
-    categoryId: "breads",
-    allergens: ["gluten", "dairy"],
-  },
-  {
-    id: "peshwari-naan",
-    name: "Peshwari Naan",
-    description: "Stuffed with coconut, sultana and almond.",
-    price: 4.2,
-    categoryId: "breads",
-    allergens: ["gluten", "dairy", "nuts"],
-  },
-  {
-    id: "roti",
-    name: "Tandoori Roti",
-    description: "Wholewheat unleavened bread.",
-    price: 2.8,
-    categoryId: "breads",
-    allergens: ["gluten"],
-  },
-  {
-    id: "butter-chicken",
-    name: "Butter Chicken",
-    description: "Tandoori chicken in a silky tomato-butter curry.",
-    price: 12.5,
-    categoryId: "curries",
-    allergens: ["dairy", "nuts"],
-    spiceLevelOptions: [...spiceGroup],
-  },
-  {
-    id: "lamb-rogan-josh",
-    name: "Lamb Rogan Josh",
-    description: "Slow-braised lamb in a Kashmiri red-chilli curry.",
-    price: 13.95,
-    categoryId: "curries",
-    allergens: [],
-    spiceLevelOptions: [...spiceGroup],
-    isTodaysSpecial: true,
-  },
-  {
-    id: "saag-paneer",
-    name: "Saag Paneer",
-    description: "Home-set paneer simmered in spiced spinach.",
-    price: 10.5,
-    categoryId: "curries",
-    allergens: ["dairy"],
-    spiceLevelOptions: [...spiceGroup],
-  },
-  {
-    id: "dal-makhani",
-    name: "Dal Makhani",
-    description: "Black lentils, slow-cooked overnight with butter and cream.",
-    price: 9.5,
-    categoryId: "curries",
-    allergens: ["dairy"],
-  },
-  {
-    id: "chana-masala",
-    name: "Chana Masala",
-    description: "Chickpeas in a tangy tomato and cumin masala.",
-    price: 9.0,
-    categoryId: "curries",
-    allergens: [],
-    spiceLevelOptions: [...spiceGroup],
-  },
-  {
-    id: "tandoori-mixed-grill",
-    name: "Tandoori Mixed Grill",
-    description: "Chicken tikka, lamb chop, seekh kebab, tandoori prawn.",
-    price: 17.95,
-    categoryId: "tandoori",
-    allergens: ["dairy", "shellfish"],
-    isOutOfStock: true,
-  },
-  {
-    id: "seekh-kebab",
-    name: "Lamb Seekh Kebab",
-    description: "Skewered minced lamb, ginger, green chilli.",
-    price: 8.5,
-    categoryId: "tandoori",
-    allergens: [],
-  },
-  {
-    id: "chicken-tikka",
-    name: "Chicken Tikka",
-    description: "Yoghurt-marinated chicken thigh, char-grilled.",
-    price: 8.95,
-    categoryId: "tandoori",
-    allergens: ["dairy"],
-  },
-  {
-    id: "chicken-biryani",
-    name: "Chicken Biryani",
-    description: "Layered basmati, saffron, fried onion, served with raita.",
-    price: 13.5,
-    categoryId: "rice",
-    allergens: ["dairy"],
-    spiceLevelOptions: [...spiceGroup],
-  },
-  {
-    id: "veg-biryani",
-    name: "Vegetable Biryani",
-    description: "Seasonal vegetables layered with saffron basmati.",
-    price: 11.5,
-    categoryId: "rice",
-    allergens: ["dairy"],
-  },
-  {
-    id: "plain-rice",
-    name: "Steamed Basmati Rice",
-    description: "",
-    price: 3.2,
-    categoryId: "rice",
-    allergens: [],
-  },
-  {
-    id: "raita",
-    name: "Raita",
-    description: "Cucumber and mint yoghurt.",
-    price: 2.5,
-    categoryId: "sides",
-    allergens: ["dairy", "mustard"],
-  },
-  {
-    id: "papadum",
-    name: "Papadum (4pc)",
-    description: "With mango chutney and mint yoghurt.",
-    price: 2.8,
-    categoryId: "sides",
-    allergens: [],
-  },
-  {
-    id: "kingfisher",
-    name: "Kingfisher Lager (pint)",
-    description: "",
-    price: 5.2,
-    categoryId: "drinks",
-    allergens: ["gluten"],
-  },
-  {
-    id: "mango-lassi",
-    name: "Mango Lassi",
-    description: "",
-    price: 4.2,
-    categoryId: "drinks",
-    allergens: ["dairy"],
-  },
-  {
-    id: "house-red",
-    name: "House Red (175ml)",
-    description: "",
-    price: 6.5,
-    categoryId: "drinks",
-    allergens: ["sulphites"],
-  },
-  {
-    id: "gulab-jamun",
-    name: "Gulab Jamun (2pc)",
-    description: "Warm milk dumplings in cardamom syrup.",
-    price: 4.5,
-    categoryId: "desserts",
-    allergens: ["dairy", "gluten"],
-  },
-  {
-    id: "kulfi",
-    name: "Pistachio Kulfi",
-    description: "Frozen cardamom and pistachio dairy dessert.",
-    price: 4.95,
-    categoryId: "desserts",
-    allergens: ["dairy", "nuts"],
-  },
-];
-
+/** The 14 UK regulated allergens. Keys match the website (`soy`, not `soya`). */
 export const allergenLabels: Record<string, string> = {
   gluten: "Gluten",
   dairy: "Dairy",
@@ -272,8 +20,11 @@ export const allergenLabels: Record<string, string> = {
   shellfish: "Shellfish",
   fish: "Fish",
   egg: "Egg",
-  soya: "Soya",
+  soy: "Soy",
   mustard: "Mustard",
   sesame: "Sesame",
   sulphites: "Sulphites",
+  celery: "Celery",
+  lupin: "Lupin",
+  molluscs: "Molluscs",
 };

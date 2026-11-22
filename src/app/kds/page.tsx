@@ -11,6 +11,7 @@ import { useAuth } from "@/lib/auth";
 import { useConnectivity } from "@/lib/connectivity";
 import { Order, OrderStatus } from "@/lib/types";
 import { Globe, Wifi, WifiOff, LogOut, Users, Clock, Play } from "lucide-react";
+import { isManagerRole } from "@/lib/types";
 
 const COLUMNS: { status: OrderStatus; label: string }[] = [
   { status: "pending", label: "Pending" },
@@ -109,7 +110,7 @@ function KdsScreen() {
             >
               Payments
             </Link>
-            {currentStaff?.role === "manager" && (
+            {isManagerRole(currentStaff?.role) && (
               <>
                 <Link
                   href="/till"

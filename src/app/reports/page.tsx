@@ -6,7 +6,7 @@ import { RequireAuth } from "@/components/RequireAuth";
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { BRAND } from "@/lib/brand";
-import { staffAccounts } from "@/lib/mock-data";
+import { useReportData } from "@/lib/useReportData";
 import { totalPaid, serviceChargeAmount } from "@/lib/billing";
 import {
   Lock,
@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   Printer,
 } from "lucide-react";
+import { isManagerRole } from "@/lib/types";
 
 type Range = "today" | "week" | "month" | "all";
 
@@ -39,12 +40,6 @@ function rangeStart(range: Range): number {
   return new Date(now.getFullYear(), now.getMonth(), 1).getTime();
 }
 
-function staffName(id?: string) {
-  if (!id) return "Unknown";
-  if (id === "online" || id === "unknown") return id;
-  return staffAccounts.find((s) => s.id === id)?.name ?? id;
-}
-
 function dayKey(ts: number) {
   return new Date(ts).toDateString();
 }
@@ -58,11 +53,14 @@ function dayLabel(ts: number) {
 }
 
 function ReportsScreen() {
-  const { orders, auditLog } = useStore();
+  const { staffNameById: staffName } = useStore();
   const { currentStaff } = useAuth();
   const [range, setRange] = useState<Range>("today");
 
   const since = rangeStart(range);
+  // Pulled from the database for the chosen range (falls back to this terminal's
+  // cached orders when offline).
+  const { orders, auditLog, loading: reportLoading, offline: reportOffline } = useReportData(since);
   const paidOrders = useMemo(
     () => orders.filter((o) => o.paymentStatus === "paid" && o.createdAt >= since),
     [orders, since]
@@ -202,7 +200,14 @@ function ReportsScreen() {
   }, [paymentsInRange, discountsGiven, serviceChargesGiven]);
 
   const auditInRange = useMemo(
-    () => auditLog.filter((a) => a.at >= since).sort((a, b) => b.at - a.at),
+    () =>
+      auditLog
+        .filter(
+          (a) =>
+            a.at >= since &&
+            ["refund", "void", "staff-discount", "manager-override"].includes(a.type)
+        )
+        .sort((a, b) => b.at - a.at),
     [auditLog, since]
   );
 
@@ -309,7 +314,7 @@ function ReportsScreen() {
     win.print();
   }
 
-  if (currentStaff?.role !== "manager") {
+  if (!isManagerRole(currentStaff?.role)) {
     return (
       <div className="h-screen flex flex-col">
         <TopBar />
@@ -330,7 +335,17 @@ function ReportsScreen() {
       <TopBar />
       <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 max-w-3xl mx-auto w-full">
         <div className="flex items-center justify-between flex-wrap gap-3 mb-6">
-          <h1 className="font-display text-2xl">Reports &amp; admin</h1>
+          <div>
+            <h1 className="font-display text-2xl">Reports</h1>
+            <p className="text-xs text-cardamom/45 mt-0.5">
+              {reportLoading
+                ? "Loading from the database…"
+                : reportOffline
+                ? "Offline — showing this terminal's cached orders only"
+                : "Live from the database"}{" "}
+              · <a href="/admin" className="underline underline-offset-2">Open admin panel</a>
+            </p>
+          </div>
           <div className="flex items-center gap-2 flex-wrap">
             <div className="flex gap-1.5">
               {(Object.keys(RANGE_LABELS) as Range[]).map((r) => (

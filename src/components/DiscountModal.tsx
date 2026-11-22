@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { useStore } from "@/lib/store";
-import { useAuth } from "@/lib/auth";
-import { ManagerPinModal } from "./ManagerPinModal";
+import { useAuth, ManagerApproval } from "@/lib/auth";
+import { ManagerApprovalModal } from "./ManagerApprovalModal";
 import { X, Tag, Percent } from "lucide-react";
+import { isManagerRole } from "@/lib/types";
 
 const STAFF_PRESETS = [10, 20, 50, 100];
 
@@ -20,23 +21,23 @@ export function DiscountModal({ subtotal, onClose }: { subtotal: number; onClose
 
   function submitPromo() {
     const ok = applyPromoCode(code, subtotal, currentStaff!.id);
-    if (!ok) {
-      setCodeError("Code not recognised");
+    if (ok !== true) {
+      setCodeError(typeof ok === "string" ? ok : "Code not recognised or expired");
       return;
     }
     onClose();
   }
 
-  function applyWith(managerId: string) {
+  function applyWith(approval: ManagerApproval | null) {
     if (pct === null) return;
-    applyStaffDiscount(pct, subtotal, reason.trim() || "No reason given", currentStaff!.id, managerId);
+    applyStaffDiscount(pct, subtotal, reason.trim() || "No reason given", currentStaff!.id, approval);
     onClose();
   }
 
   function requestStaffDiscount() {
     if (pct === null) return;
-    if (currentStaff?.role === "manager") {
-      applyWith(currentStaff.id);
+    if (isManagerRole(currentStaff?.role)) {
+      applyWith(null); // signed-in manager — their own session is the authority
     } else {
       setNeedsPin(true);
     }
@@ -124,19 +125,19 @@ export function DiscountModal({ subtotal, onClose }: { subtotal: number; onClose
               disabled={pct === null}
               className="w-full mt-3 rounded-xl bg-chili text-ivory font-semibold py-3 disabled:opacity-30"
             >
-              {currentStaff?.role === "manager" ? "Apply discount" : "Request manager authorisation"}
+              {isManagerRole(currentStaff?.role) ? "Apply discount" : "Request manager authorisation"}
             </button>
           </div>
         )}
       </div>
 
       {needsPin && (
-        <ManagerPinModal
+        <ManagerApprovalModal
           title="Authorise staff discount"
           onCancel={() => setNeedsPin(false)}
-          onConfirm={(managerId) => {
+          onConfirm={(approval) => {
             setNeedsPin(false);
-            applyWith(managerId);
+            applyWith(approval);
           }}
         />
       )}

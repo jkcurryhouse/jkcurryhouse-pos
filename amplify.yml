@@ -1,0 +1,24 @@
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - nvm install 20 && nvm use 20 || true
+        # postinstall runs `prisma generate`
+        - npm ci
+    build:
+      commands:
+        # Next.js SSR on Amplify only sees env vars that exist at build time, so copy the
+        # server-side ones into .env.production (never committed — see .gitignore).
+        - env | grep -E '^(DATABASE_URL|DATABASE_SSL|DATABASE_SSL_CA|DATABASE_POOL_MAX|SESSION_SECRET|POS_ALLOWED_IPS|POS_TRUSTED_PROXY_HOPS|ENABLE_DEMO_TOOLS|RESTAURANT_ID)=' >> .env.production || true
+        # Apply any pending Prisma migrations before the new build goes live (safe to re-run).
+        - npx prisma migrate deploy
+        - npm run build
+  artifacts:
+    baseDirectory: .next
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - node_modules/**/*
+      - .next/cache/**/*

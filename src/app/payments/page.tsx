@@ -7,7 +7,7 @@ import { RequireAuth } from "@/components/RequireAuth";
 import { CheckoutDrawer } from "@/components/CheckoutDrawer";
 import { SplitBillModal } from "@/components/SplitBillModal";
 import { MergeOrdersModal } from "@/components/MergeOrdersModal";
-import { ManagerPinModal } from "@/components/ManagerPinModal";
+import { ManagerApprovalModal } from "@/components/ManagerApprovalModal";
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { Order } from "@/lib/types";
@@ -22,6 +22,7 @@ import {
   Merge,
   ChefHat,
 } from "lucide-react";
+import { isManagerRole } from "@/lib/types";
 
 function PaymentsScreen() {
   const { orders, refundOrder, voidOrder, sendToKitchen } = useStore();
@@ -42,7 +43,9 @@ function PaymentsScreen() {
     .slice(0, 20);
 
   function requestManagerAction(order: Order, kind: "refund" | "void") {
-    if (currentStaff?.role === "manager") {
+    if (isManagerRole(currentStaff?.role)) {
+      const what = kind === "refund" ? `Refund order #${order.orderNumber} in full?` : `Void order #${order.orderNumber}? It will be removed from the kitchen and open tickets.`;
+      if (!window.confirm(what)) return;
       if (kind === "refund") refundOrder(order.id, currentStaff.id);
       else voidOrder(order.id, currentStaff.id, "Manager void");
     } else {
@@ -140,6 +143,14 @@ function PaymentsScreen() {
                       >
                         <Merge size={13} /> Merge into another table
                       </button>
+                      {order.paymentStatus === "unpaid" && (
+                        <button
+                          onClick={() => requestManagerAction(order, "void")}
+                          className="flex items-center gap-1.5 text-xs font-medium text-chili border border-chili/25 rounded-full px-3 py-1.5 hover:bg-chili/5 ml-auto"
+                        >
+                          <Ban size={13} /> Void ticket
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -185,13 +196,6 @@ function PaymentsScreen() {
                     >
                       <RotateCcw size={16} />
                     </button>
-                    <button
-                      onClick={() => requestManagerAction(order, "void")}
-                      title="Void"
-                      className="p-2 rounded-lg hover:bg-cardamom/10 text-cardamom/50"
-                    >
-                      <Ban size={16} />
-                    </button>
                   </div>
                 )}
               </div>
@@ -216,12 +220,18 @@ function PaymentsScreen() {
       )}
 
       {pinAction && (
-        <ManagerPinModal
+        <ManagerApprovalModal
           title={pinAction.kind === "refund" ? "Authorise refund" : "Authorise void"}
           onCancel={() => setPinAction(null)}
-          onConfirm={(managerId) => {
-            if (pinAction.kind === "refund") refundOrder(pinAction.order.id, managerId);
-            else voidOrder(pinAction.order.id, managerId, "Manager-authorised void");
+          onConfirm={(approval) => {
+            if (pinAction.kind === "refund") refundOrder(pinAction.order.id, currentStaff!.id, approval);
+            else
+              voidOrder(
+                pinAction.order.id,
+                currentStaff!.id,
+                `Void authorised by ${approval.managerName}`,
+                approval
+              );
             setPinAction(null);
           }}
         />

@@ -18,15 +18,14 @@ export default function Home() {
 
       <main className="flex-1 flex flex-col items-center justify-center px-6 py-16 text-center">
         <span className="text-xs font-semibold uppercase tracking-[0.2em] text-cardamom/40 mb-3">
-          Staff terminal · Iteration 5
+          Staff terminal
         </span>
         <h1 className="font-display text-4xl sm:text-5xl leading-tight max-w-xl">
-          Split it six ways, or push two tables together.
+          Orders, kitchen, payments and the till — all on one database.
         </h1>
         <p className="text-cardamom/60 mt-4 max-w-md">
-          Sign in, take orders, cook, get paid — including splitting a bill by item across
-          several guests or merging two open tickets into one — close the till, and see it all
-          rolled up in reporting with a full audit trail.
+          Every terminal, the kitchen display and the website share the same live menu and
+          order data. Managers run the menu, staff, promotions and reporting from the admin panel.
         </p>
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4 mt-10 w-full max-w-4xl">
@@ -71,21 +70,20 @@ export default function Home() {
             </p>
           </Link>
           <Link
-            href="/reports"
+            href="/admin"
             className="group rounded-2xl border border-cardamom/10 bg-white p-6 text-left hover:border-gold/50 hover:shadow-ticket transition-all"
           >
             <BarChart3 className="text-gold-dark" size={26} />
-            <h2 className="font-display text-xl mt-4">Reports &amp; admin</h2>
+            <h2 className="font-display text-xl mt-4">Admin panel</h2>
             <p className="text-sm text-cardamom/55 mt-1">
-              Sales, best sellers, staff performance, audit log.
+              Menu, staff, promotions, customers, sales reports, audit log.
             </p>
           </Link>
         </div>
 
         <div className="flex items-center gap-2 text-xs text-cardamom/40 mt-10">
           <ShieldCheck size={14} />
-          Real AWS/Cognito/Stripe/RDS wiring, split-bill/merge-order, and hardware integration
-          land when this moves off the prototype.
+          Restricted to the restaurant network · keeps taking orders offline and syncs when reconnected.
         </div>
       </main>
     </div>
