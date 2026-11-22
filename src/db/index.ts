@@ -3,6 +3,7 @@ import fs from "node:fs";
 import type { PoolConfig } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient, Prisma } from "@/generated/prisma/client";
+import { cleanDatabaseUrl, urlConnectionLimit } from "@/lib/dbUrl";
 
 /**
  * TLS for RDS. The stack forces SSL (rds.force_ssl=1), so:
@@ -31,11 +32,11 @@ function createClient() {
   if (!url) throw new Error("DATABASE_URL is not set");
   const adapter = new PrismaPg({
     // sslmode in the URL would override the ssl object below, so strip it here
-    connectionString: url.replace(/[?&]sslmode=[^&]*/g, ""),
+    connectionString: cleanDatabaseUrl(url),
     ssl: sslConfig(),
     // Amplify's SSR runtime is Lambda-based: keep each instance's pool small so many warm
     // instances don't exhaust RDS max_connections.
-    max: Number(process.env.DATABASE_POOL_MAX ?? 3),
+    max: Number(process.env.DATABASE_POOL_MAX ?? urlConnectionLimit(url) ?? 3),
     idleTimeoutMillis: 10_000,
     connectionTimeoutMillis: 8_000,
   });
